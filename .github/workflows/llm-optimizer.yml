@@ -85,4 +85,6 @@ jobs:
       - name: Show AI suggestions
         run: |
           echo "LLM response:"
+          cat << 'END_LLM_OUTPUT'
           echo '${{ steps.inference.outputs.response }}'
+          END_LLM_OUTPUT
