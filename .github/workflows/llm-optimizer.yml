@@ -24,17 +24,35 @@ jobs:
       - name: Load workflow YAML
         id: read_yaml
         run: |
-          FILE=$(ls .github/workflows | grep -v llm-optimizer.yml | head -n 1)
+          set -e
+
+          FILE=""
+
+          # Loop over all .yml files and skip llm-optimizer.yml
+          for f in .github/workflows/*.yml; do
+            if [[ "$(basename "$f")" != "llm-optimizer.yml" ]]; then
+              FILE="$f"
+              break
+            fi
+          done
+
+          if [[ -z "$FILE" ]]; then
+            echo "No other workflow file found to analyze."
+            # Set empty content to avoid failure
+            echo "content=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           echo "Analyzing workflow file: $FILE"
 
-          CONTENT=$(cat .github/workflows/$FILE)
+          CONTENT=$(cat "$FILE")
 
           # Escape for GitHub Actions output
           CONTENT="${CONTENT//'%'/'%25'}"
           CONTENT="${CONTENT//$'\n'/'%0A'}"
           CONTENT="${CONTENT//$'\r'/'%0D'}"
 
-          echo "content=$CONTENT" >> $GITHUB_OUTPUT
+          echo "content=$CONTENT" >> "$GITHUB_OUTPUT"
 
       # Call GitHub Models via the official AI Inference action
       - name: Analyze CI/CD YAML with LLM
