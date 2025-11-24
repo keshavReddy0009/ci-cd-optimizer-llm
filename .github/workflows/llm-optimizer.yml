@@ -1,0 +1,70 @@
+name: LLM CI/CD Optimizer
+
+on:
+  push:
+    paths:
+      - ".github/workflows/*.yml"
+  workflow_dispatch:
+
+jobs:
+  analyze-pipeline:
+    runs-on: ubuntu-latest
+
+    # Needed so the job can read models via GitHub Models
+    # and read your repo contents.
+    permissions:
+      contents: read
+      models: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Read one workflow file (any .yml in .github/workflows except this optimizer itself)
+      - name: Load workflow YAML
+        id: read_yaml
+        run: |
+          FILE=$(ls .github/workflows | grep -v llm-optimizer.yml | head -n 1)
+          echo "Analyzing workflow file: $FILE"
+
+          CONTENT=$(cat .github/workflows/$FILE)
+
+          # Escape for GitHub Actions output
+          CONTENT="${CONTENT//'%'/'%25'}"
+          CONTENT="${CONTENT//$'\n'/'%0A'}"
+          CONTENT="${CONTENT//$'\r'/'%0D'}"
+
+          echo "content=$CONTENT" >> $GITHUB_OUTPUT
+
+      # Call GitHub Models via the official AI Inference action
+      - name: Analyze CI/CD YAML with LLM
+        id: inference
+        uses: actions/ai-inference@v1
+        with:
+          model: openai/gpt-4o-mini
+          prompt: |
+            You are a CI/CD optimization assistant.
+            Analyze this GitHub Actions workflow YAML for:
+
+            - Redundant jobs or steps
+            - Missing cache opportunities
+            - Security issues (permissions, secrets usage)
+            - Cost inefficiencies (long-running or unnecessary jobs)
+            - Performance improvements (parallelism, matrix, etc.)
+
+            Return your answer as JSON with keys:
+            {
+              "performance": [],
+              "security": [],
+              "cost": [],
+              "other": []
+            }
+
+            --- BEGIN YAML ---
+            ${{ steps.read_yaml.outputs.content }}
+            --- END YAML ---
+
+      - name: Show AI suggestions
+        run: |
+          echo "LLM response:"
+          echo '${{ steps.inference.outputs.response }}'
